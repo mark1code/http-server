@@ -1,8 +1,8 @@
 # Compiler definition
 CC = gcc
 # Compiler flags: compiler warnings and extra warnings
-# add include directory
 CFLAGS = -Wall -Wextra -Iinclude -Iunity
+LDFLAGS = -lws2_32
 
 # Source and object files
 SRC = src/main.c src/server.c
@@ -11,25 +11,31 @@ OBJ = $(SRC:.c=.o)
 # Name of executable
 TARGET = http_server
 
-#Test files
+# Test files
 TEST_SRC = test/test_server.c src/server.c unity/unity.c
 TEST_OBJ = $(TEST_SRC:.c=.o)
 TEST_TARGET = test_run
 
-# Makes on target
+# Default target
 all: $(TARGET)
 
-# Compiles object files to finale executable
+# Link final executable
 $(TARGET): $(OBJ)
-	$(CC) -o $@ $^
+	$(CC) -o $@ $^ $(LDFLAGS)
 
-# Compiles .c files to .o files
-%.o: %.c
+# Compile .c files to .o files (source files)
+$(OBJ): %.o: %.c
+	$(CC) $(CFLAGS) -c $< -o $@
+
+# Compile .c files to .o files (test files)
+$(TEST_OBJ): %.o: %.c
 	$(CC) $(CFLAGS) -c $< -o $@
 
 # Target to build the test runner
 $(TEST_TARGET): $(TEST_OBJ)
-	$(CC) -o $@ $^
+	$(CC) -o $@ $^ $(LDFLAGS)
+
+# Run tests
 test: $(TEST_TARGET)
 	./$(TEST_TARGET)
 
@@ -38,4 +44,4 @@ clean:
 	rm -f $(OBJ) $(TARGET) $(TEST_OBJ) $(TEST_TARGET)
 
 # Declare phony targets
-.PHONY: all clean
+.PHONY: all clean test

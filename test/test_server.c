@@ -1,5 +1,6 @@
 #include "unity.h"
 #include "server.h"
+#include <winsock2.h>
 
 // Set and clean up methods
 void setUp(void) {
@@ -9,10 +10,10 @@ void tearDown(void) {
 
 void test_create_socket(void){
 	// socket file descriptor
-	int fd = create_socket();
+	SOCKET s = create_socket();
 	// positive if successful
-	TEST_ASSERT_GREATER_THAN(0, fd);
-	closesocket(fd);
+	TEST_ASSERT_NOT_EQUAL(INVALID_SOCKET, s);
+	closesocket(s);
 	WSACleanup();
 }
 
