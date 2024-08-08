@@ -7,14 +7,17 @@ void setUp(void) {
 void tearDown(void) {
 }
 
-// Example test
-void test_add_should_return_sum_of_two_numbers(void) {
-    int result = add(1, 2);
-    TEST_ASSERT_EQUAL(3, result);
+void test_create_socket(void){
+	// socket file descriptor
+	int fd = create_socket();
+	// positive if successful
+	TEST_ASSERT_GREATER_THAN(0, fd);
+	closesocket(fd);
+	WSACleanup();
 }
 
 int main(void) {
     UNITY_BEGIN();
-    RUN_TEST(test_add_should_return_sum_of_two_numbers);
+    RUN_TEST(test_create_socket);
     return UNITY_END();
 }
