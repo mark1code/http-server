@@ -6,14 +6,14 @@ LDFLAGS = -lws2_32
 
 # Source and object files
 SRC = src/main.c src/server.c
-OBJ = $(SRC:.c=.o)
+OBJ = $(SRC:%.c=%.o)
 
 # Name of executable
 TARGET = http_server
 
 # Test files
 TEST_SRC = test/test_server.c src/server.c unity/unity.c
-TEST_OBJ = $(TEST_SRC:.c=.o)
+TEST_OBJ = $(TEST_SRC:%.c=%.o)
 TEST_TARGET = test_run
 
 # Default target
@@ -24,7 +24,10 @@ $(TARGET): $(OBJ)
 	$(CC) -o $@ $^ $(LDFLAGS)
 
 # Compile .c files to .o files (source files)
-$(OBJ): %.o: %.c
+%.o: %.c
+	$(CC) $(CFLAGS) -c $< -o $@
+
+test_%.o: test/%.c
 	$(CC) $(CFLAGS) -c $< -o $@
 
 # Compile .c files to .o files (test files)
