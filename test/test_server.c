@@ -3,13 +3,19 @@
 #include <winsock2.h>
 #include <stdio.h>
 
-// Set and clean up methods
+// Set up and clean up
 void setUp(void) {
-}
-void tearDown(void) {
+    // Initialise Winsock 
+    WSADATA wsadata;
+    WSAStartup(MAKEWORD(2, 2), &wsadata);
 }
 
-// Socket creation
+void tearDown(void) {
+    // Clean up Winsock
+    WSACleanup();
+}
+
+// Socket creation test
 void test_create_socket(void){
 	SOCKET s = create_socket();
 	TEST_ASSERT_NOT_EQUAL(INVALID_SOCKET, s);
@@ -17,7 +23,7 @@ void test_create_socket(void){
 	WSACleanup();
 }
 
-// Bind socket
+// Bind socket test
 void test_bind_socket(void){
 	SOCKET s = create_socket();
 	TEST_ASSERT_NOT_EQUAL(INVALID_SOCKET, s);
@@ -29,75 +35,61 @@ void test_bind_socket(void){
 	WSACleanup();
 }
 
-
-// Listening and accepting a client connection
-void test_listen_and_accept_socket(void) {
-    SOCKET s = create_socket();
-    TEST_ASSERT_NOT_EQUAL(INVALID_SOCKET, s);
-	
-
-    int bind_res = bind_socket(s);
-    TEST_ASSERT_EQUAL(0, bind_res);
-
-    // Start a client connection as separate process
-    SOCKET client_socket = create_socket();
-    struct sockaddr_in client_addr;
-    client_addr.sin_family = AF_INET;
-    client_addr.sin_addr.s_addr = inet_addr("127.0.0.1"); // Localhost
-    client_addr.sin_port = htons(PORT);
-    
-    int conn_res = connect(client_socket, (struct sockaddr*)&client_addr, sizeof(client_addr));
-    TEST_ASSERT_EQUAL(0, conn_res);
-
-    // Server should accept this connection
-    SOCKET client = accept(s, NULL, NULL);
-    TEST_ASSERT_NOT_EQUAL(INVALID_SOCKET, client);
-
-    closesocket(client);
-    closesocket(client_socket);
-    closesocket(s);
-    WSACleanup();
+// Start server in a separate thread
+DWORD WINAPI start_server() {
+    server_start();
+    return 0;
 }
 
-// Test for receiving data from a client
-void test_recv_data(void) {
-    SOCKET s = create_socket();
-    TEST_ASSERT_NOT_EQUAL(INVALID_SOCKET, s);
+// Handling client request test
+void test_client_accept(void) {
+    HANDLE serverThread;
+    SOCKET clientSocket;
+    struct sockaddr_in server_addr;
+    char response[1024] = {0};
+    int bytes_received;
 
-    int bind_res = bind_socket(s);
-    TEST_ASSERT_EQUAL(0, bind_res);
+    // Start server thread
+    serverThread = CreateThread(NULL, 0, start_server, NULL, 0, NULL);
 
-    int listen_res = listen(s, 10);
-    TEST_ASSERT_EQUAL(0, listen_res);
+    // Create client socket
+    WSADATA wsadata;
+    WSAStartup(MAKEWORD(2, 2), &wsadata);
+    clientSocket = socket(AF_INET, SOCK_STREAM, 0);
 
-    // Simulate a client connection here and send data
-    SOCKET client = accept(s, NULL, NULL);
-    TEST_ASSERT_NOT_EQUAL(INVALID_SOCKET, client);
+    // Connect to server
+    server_addr.sin_family = AF_INET;
+    server_addr.sin_addr.s_addr = inet_addr("127.0.0.1");
+    server_addr.sin_port = htons(PORT);
+    connect(clientSocket, (struct sockaddr*)&server_addr, sizeof(server_addr));
 
+    // Send HTTP request
+    const char* request_message = "GET / HTTP/1.1\r\nHost: localhost\r\n\r\n";
+    send(clientSocket, request_message, strlen(request_message), 0);
 
-    char request[256] = {0};
-    int recv_res = recv(client, request, sizeof(request), 0);
-    TEST_ASSERT_GREATER_THAN(0, recv_res); // Data received
-    TEST_ASSERT_NOT_EQUAL(0, strlen(request)); // Request not empty
+    // Receive response
+    bytes_received = recv(clientSocket, response, sizeof(response) - 1, 0);
+    response[bytes_received] = '\0';  // Ensure correct format
 
-    closesocket(client);
-    closesocket(s);
-    WSACleanup();
-}
+    // Check response
+    const char* expected_response = 
+        "HTTP/1.1 200 OK\r\n"
+        "Content-Type: text/html\r\n"
+        "Connection: close\r\n"
+        "\r\n";
 
+    TEST_ASSERT_EQUAL_STRING(expected_response, response);
 
-void test_server_start(void){
-	// Server start integration test
-	TEST_ASSERT_EQUAL(0, server_start());
+    // Clean up
+    closesocket(clientSocket);
+    WaitForSingleObject(serverThread, INFINITE);
+    CloseHandle(serverThread);
 }
 
 void run_tests(void){
 	RUN_TEST(test_create_socket);
     RUN_TEST(test_bind_socket);
-	RUN_TEST(test_listen_and_accept_socket);
-	RUN_TEST(test_recv_data);
-
-	RUN_TEST(test_server_start);
+    RUN_TEST(test_client_accept);
 }
 
 int main(void) {
