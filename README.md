@@ -1,22 +1,34 @@
 # http-server
 
-Basic HTTP server in C with testing using the Unity framework.
+A basic HTTP server in C using Winsock2, with testing implemented via the Unity framework.
+
+## Table of Contents
+- Prerequisites
+- Usage
+
+## Prerequisites
+- C compiler (e.g., GCC)
+- Winsock2 library
+
+*Note: GCC is the default compiler. To use a different compiler, change the `CC` variable in the Makefile (e.g., `CC = clang`).*
 
 ## Usage
-Compile files
+Builds server
 ```bash
 make
 ```
-Run the server
+Starts the server
 ```bash
 ./http-server
-# Then open localhost:8080 in a browser.
+# Then open localhost:8080 in a browser
 ```
-Remove object files
+Removes build files
 ```bash
 make clean
 ```
-Run tests
+Builds and runs tests
 ```bash
 make test
 ```
+
+
