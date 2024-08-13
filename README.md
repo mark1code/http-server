@@ -5,6 +5,7 @@ A basic HTTP server in C using Winsock2, with testing implemented via the Unity 
 ## Table of Contents
 - Prerequisites
 - Usage
+- License
 
 ## Prerequisites
 - C compiler (e.g., GCC)
@@ -31,4 +32,5 @@ Builds and runs tests
 make test
 ```
 
-
+## License
+This project is licensed under the MIT License - see the LICENSE file for details.
