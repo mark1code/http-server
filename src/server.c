@@ -8,7 +8,6 @@
 #define PASSWORD "password"
 
 int server_start(){
-	printf("Starting server on port %d...\n", PORT);
 	SOCKET socket = create_socket();
 	bind_socket(socket);
 
