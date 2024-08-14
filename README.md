@@ -1,6 +1,6 @@
 # http-server
 
-A basic HTTP server in C using Winsock2, with testing implemented via the Unity framework.
+A basic HTTP server with Basic Authentication in C using Winsock2, with testing implemented via the Unity framework.
 
 ## Table of Contents
 - Prerequisites
@@ -22,6 +22,8 @@ Starts the server
 ```bash
 ./http-server
 # Then open localhost:8080 in a browser
+# Username: admin
+# Password: password
 ```
 Removes build files
 ```bash
