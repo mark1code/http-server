@@ -84,9 +84,7 @@ void test_client_accept(void) {
     // Clean up
     closesocket(clientSocket);
     WaitForSingleObject(serverThread, 100);
-    printf("cant wait cant wait");
     CloseHandle(serverThread);
-    printf("SUNNY DAY");
 }
 
 // Decoding base64 test
