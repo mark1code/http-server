@@ -1,15 +1,30 @@
 #include <stdio.h>
 #include <winsock2.h>
 #include <windows.h>
+#include "base64_decode.h"
 #include "server.h"
+
+#define USERNAME "admin"
+#define PASSWORD "password"
 
 int server_start(){
 	printf("Starting server on port %d...\n", PORT);
 	SOCKET socket = create_socket();
 	bind_socket(socket);
-	client_accept(socket);
-	closesocket(socket);
-    WSACleanup();
+
+	listen(socket, 10);
+
+    while (1) {
+        // Accept a new client connection
+        SOCKET client_socket = accept(socket, NULL, NULL);
+
+        // Handle the client request
+        client_accept(client_socket);
+
+        // Close the client socket after handling the request
+        closesocket(client_socket);
+    }
+	WSACleanup();
 	return 0;
 }
 
@@ -30,42 +45,87 @@ int bind_socket(SOCKET s){
 	return 0;
 }
 
+int client_accept(SOCKET client){
+    char request[1024] = {0};
+    recv(client, request, sizeof(request) - 1, 0);
 
-int client_accept(SOCKET s){
-	listen(s,10);
-	SOCKET client = accept(s, 0, 0);
-	char request[1024] = {0};
-	recv(client, request, sizeof(request) - 1, 0);
-	// Memory compare
-	if (memcmp(request, "GET / ", 6) == 0) {
-		FILE* f = fopen("index.html", "r");
-		if (f) {
-			char buffer[1024];
-			int bytes_read = fread(buffer, 1, sizeof(buffer), f);
-			fclose(f);
+    // Check for Basic Authentication header
+    const char* auth_header = "Authorization: Basic ";
+    char* auth_position = strstr(request, auth_header);
 
-			// HTTP response headers
-			const char* response_headers =
-				"HTTP/1.1 200 OK\r\n"
-				"Content-Type: text/html\r\n"
-				"Connection: close\r\n"
-				"\r\n";
+    if (auth_position) {
+        auth_position += strlen(auth_header);
 
-			send(client, response_headers, strlen(response_headers), 0);
-			send(client, buffer, bytes_read, 0);
-		} else {
-			const char* not_found_response =
-				"HTTP/1.1 404 Not Found\r\n"
-				"Content-Type: text/html\r\n"
-				"Connection: close\r\n"
-				"\r\n"
-				"<html><body><h1>404 Not Found</h1></body></html>";
+        // Find the end of the header line
+        char* auth_end = strstr(auth_position, "\r\n");
+        if (auth_end) {
+            *auth_end = '\0'; // Null-terminate the encoded credentials string
 
-			send(client, not_found_response, strlen(not_found_response), 0);
-		}
-	}
+            // Decode Base64
+            char decoded_credentials[256] = {0};
+            decode_base64(decoded_credentials, auth_position);
 
+            // Check credentials
+            char expected_credentials[256] = {0};
 
-	return 0;
+            snprintf(expected_credentials, sizeof(expected_credentials), "%s:%s", USERNAME, PASSWORD);
+            if (strcmp(decoded_credentials, expected_credentials) == 0) {
+                // Correct credentials, serve the requested file
+                if (memcmp(request, "GET / ", 6) == 0) {
+                    FILE* f = fopen("index.html", "r");
+                    if (f) {
+                        char buffer[1024];
+                        int bytes_read = fread(buffer, 1, sizeof(buffer), f);
+                        fclose(f);
+
+                        const char* response_headers =
+                            "HTTP/1.1 200 OK\r\n"
+                            "Content-Type: text/html\r\n"
+                            "Connection: close\r\n"
+                            "\r\n";
+
+                        send(client, response_headers, strlen(response_headers), 0);
+                        send(client, buffer, bytes_read, 0);
+                    } else {
+                        const char* not_found_response =
+                            "HTTP/1.1 404 Not Found\r\n"
+                            "Content-Type: text/html\r\n"
+                            "Connection: close\r\n"
+                            "\r\n";
+
+                        send(client, not_found_response, strlen(not_found_response), 0);
+                    }
+                }
+			// Clear sensitive information from the buffers
+			memset(request, 0, sizeof(request));
+			memset(decoded_credentials, 0, sizeof(decoded_credentials));
+			memset(expected_credentials, 0, sizeof(expected_credentials));
+            } else {
+                // Incorrect credentials, send 401 Unauthorized
+                const char* unauthorized_response =
+                    "HTTP/1.1 401 Unauthorized\r\n"
+                    "WWW-Authenticate: Basic realm=\"Restricted Area\"\r\n"
+                    "Content-Type: text/html\r\n"
+                    "Connection: close\r\n"
+                    "\r\n";
+
+                send(client, unauthorized_response, strlen(unauthorized_response), 0);
+            }
+        }
+    } else {
+        // No credentials provided, send 401 Unauthorized
+        const char* unauthorized_response =
+            "HTTP/1.1 401 Unauthorized\r\n"
+            "WWW-Authenticate: Basic realm=\"Restricted Area\"\r\n"
+            "Content-Type: text/html\r\n"
+            "Connection: close\r\n"
+            "\r\n";
+
+        send(client, unauthorized_response, strlen(unauthorized_response), 0);
+    }
+
+    closesocket(client);
+    return 0;
+
 }
 
