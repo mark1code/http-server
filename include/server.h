@@ -7,6 +7,6 @@
 int server_start();
 SOCKET create_socket();
 int bind_socket(SOCKET s);
-int client_accept(SOCKET s);
+int handle_request(SOCKET s);
 
 #endif // SERVER_H

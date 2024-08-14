@@ -19,7 +19,7 @@ int server_start(){
         SOCKET client_socket = accept(socket, NULL, NULL);
 
         // Handle the client request
-        client_accept(client_socket);
+        handle_request(client_socket);
 
         // Close the client socket after handling the request
         closesocket(client_socket);
@@ -45,7 +45,7 @@ int bind_socket(SOCKET s){
 	return 0;
 }
 
-int client_accept(SOCKET client){
+int handle_request(SOCKET client){
     char request[1024] = {0};
     recv(client, request, sizeof(request) - 1, 0);
 
@@ -119,7 +119,8 @@ int client_accept(SOCKET client){
             "WWW-Authenticate: Basic realm=\"Restricted Area\"\r\n"
             "Content-Type: text/html\r\n"
             "Connection: close\r\n"
-            "\r\n";
+            "\r\n"
+            "<html><body><h1>401 Unauthorized</h1></body></html>";
 
         send(client, unauthorized_response, strlen(unauthorized_response), 0);
     }
