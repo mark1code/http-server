@@ -1,19 +1,19 @@
 # Compiler definition
 CC = gcc
 # Compiler flags: compiler warnings and extra warnings
-CFLAGS = -Wall -Wextra -Iinclude -Iunity
+CFLAGS = -Wall -Wextra -Iinclude -Iunity -Iutils
 LDFLAGS = -lws2_32
 
 # Source and object files
-SRC = src/main.c src/server.c
-OBJ = $(SRC:%.c=%.o)
+SRC = src/main.c src/server.c utils/base64_decode.c
+OBJ = $(SRC:.c=.o)
 
 # Name of executable
 TARGET = http_server
 
 # Test files
-TEST_SRC = test/test_server.c src/server.c unity/unity.c
-TEST_OBJ = $(TEST_SRC:%.c=%.o)
+TEST_SRC = test/test_server.c src/server.c utils/base64_decode.c unity/unity.c
+TEST_OBJ = $(TEST_SRC:.c=.o)
 TEST_TARGET = test_run
 
 # Default target

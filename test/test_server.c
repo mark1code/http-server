@@ -2,6 +2,7 @@
 #include "server.h"
 #include <winsock2.h>
 #include <stdio.h>
+#include "base64_decode.h"
 
 // Set up and clean up
 void setUp(void) {
@@ -71,25 +72,38 @@ void test_client_accept(void) {
     bytes_received = recv(clientSocket, response, sizeof(response) - 1, 0);
     response[bytes_received] = '\0';  // Ensure correct format
 
-    // Check response
-    const char* expected_response = 
-        "HTTP/1.1 200 OK\r\n"
-        "Content-Type: text/html\r\n"
-        "Connection: close\r\n"
-        "\r\n";
-
+    // Check response, no details provided so send
+    const char* expected_response =
+    "HTTP/1.1 401 Unauthorized\r\n"
+    "WWW-Authenticate: Basic realm=\"Restricted Area\"\r\n"
+    "Content-Type: text/html\r\n"
+    "Connection: close\r\n"
+    "\r\n";
     TEST_ASSERT_EQUAL_STRING(expected_response, response);
 
     // Clean up
     closesocket(clientSocket);
-    WaitForSingleObject(serverThread, INFINITE);
+    WaitForSingleObject(serverThread, 100);
+    printf("cant wait cant wait");
     CloseHandle(serverThread);
+    printf("SUNNY DAY");
+}
+
+// Decoding base64 test
+void test_decode_b64(void){
+    char encoded[] = "YWRtaW46cGFzc3dvcmQ="; // Base64 for "admin:password"
+    char decoded[256];
+
+    decode_base64(decoded, encoded);
+
+    TEST_ASSERT_EQUAL_STRING("admin:password", decoded);
 }
 
 void run_tests(void){
 	RUN_TEST(test_create_socket);
     RUN_TEST(test_bind_socket);
     RUN_TEST(test_client_accept);
+    RUN_TEST(test_decode_b64);
 }
 
 int main(void) {
