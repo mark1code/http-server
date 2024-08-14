@@ -8,12 +8,11 @@
 #define PASSWORD "password"
 
 int server_start(){
-	printf("Starting server on port %d...\n", PORT);
 	SOCKET socket = create_socket();
 	bind_socket(socket);
 
 	listen(socket, 10);
-
+    // Keep listening for clients until server shuts down
     while (1) {
         // Accept a new client connection
         SOCKET client_socket = accept(socket, NULL, NULL);
@@ -46,6 +45,7 @@ int bind_socket(SOCKET s){
 }
 
 int handle_request(SOCKET client){
+    // TODO: Refactor code structure
     char request[1024] = {0};
     recv(client, request, sizeof(request) - 1, 0);
 
@@ -62,6 +62,7 @@ int handle_request(SOCKET client){
             *auth_end = '\0'; // Null-terminate the encoded credentials string
 
             // Decode Base64
+            // TODO: Add encryption to secure details
             char decoded_credentials[256] = {0};
             decode_base64(decoded_credentials, auth_position);
 
@@ -71,6 +72,7 @@ int handle_request(SOCKET client){
             snprintf(expected_credentials, sizeof(expected_credentials), "%s:%s", USERNAME, PASSWORD);
             if (strcmp(decoded_credentials, expected_credentials) == 0) {
                 // Correct credentials, serve the requested file
+                // TODO: Handle requests for specific files in a directory
                 if (memcmp(request, "GET / ", 6) == 0) {
                     FILE* f = fopen("index.html", "r");
                     if (f) {
@@ -87,6 +89,7 @@ int handle_request(SOCKET client){
                         send(client, response_headers, strlen(response_headers), 0);
                         send(client, buffer, bytes_read, 0);
                     } else {
+                        // Currently won't be used
                         const char* not_found_response =
                             "HTTP/1.1 404 Not Found\r\n"
                             "Content-Type: text/html\r\n"
@@ -101,7 +104,7 @@ int handle_request(SOCKET client){
 			memset(decoded_credentials, 0, sizeof(decoded_credentials));
 			memset(expected_credentials, 0, sizeof(expected_credentials));
             } else {
-                // Incorrect credentials, send 401 Unauthorized
+                // Incorrect credentials, send 401 Unauthorized, unused due to loop
                 const char* unauthorized_response =
                     "HTTP/1.1 401 Unauthorized\r\n"
                     "WWW-Authenticate: Basic realm=\"Restricted Area\"\r\n"
@@ -127,6 +130,4 @@ int handle_request(SOCKET client){
 
     closesocket(client);
     return 0;
-
 }
-

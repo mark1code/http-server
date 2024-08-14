@@ -1,8 +1,9 @@
 #ifndef SERVER_H
 #define SERVER_H
-#define PORT 8080
 
 #include <winsock2.h>
+
+#define PORT 8080
 
 int server_start();
 SOCKET create_socket();

@@ -21,7 +21,6 @@ void test_create_socket(void){
 	SOCKET s = create_socket();
 	TEST_ASSERT_NOT_EQUAL(INVALID_SOCKET, s);
 	closesocket(s);
-	WSACleanup();
 }
 
 // Bind socket test
@@ -33,7 +32,6 @@ void test_bind_socket(void){
 	TEST_ASSERT_EQUAL(0, res);
 
 	closesocket(s);
-	WSACleanup();
 }
 
 // Start server in a separate thread
@@ -110,9 +108,7 @@ void test_handle_request_auth_pass(void) {
     server_addr.sin_port = htons(PORT);
     connect(clientSocket, (struct sockaddr*)&server_addr, sizeof(server_addr));
 
-    // Send HTTP request
-    //const char* request_message = "GET / HTTP/1.1\r\nHost: localhost\r\n\r\n";
-
+    // Send HTTP request with credentials
     const char* request_message = "GET / HTTP/1.1\r\n"
                               "Host: localhost\r\n"
                               "Authorization: Basic YWRtaW46cGFzc3dvcmQ=\r\n"
@@ -124,7 +120,7 @@ void test_handle_request_auth_pass(void) {
     bytes_received = recv(clientSocket, response, sizeof(response) - 1, 0);
     response[bytes_received] = '\0';  // Ensure correct format
 
-    // Check response, no details provided so send
+    // Check response, authorized so send 200 OK
     const char* expected_response =
     "HTTP/1.1 200 OK\r\n"
     "Content-Type: text/html"
