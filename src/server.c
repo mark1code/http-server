@@ -82,47 +82,38 @@ int handle_request(SOCKET client) {
                         *url_end = '\0'; // Null-terminate the URL
 
                         // Map URL to file
-                        const char* file_to_serve;
+                        char file_to_serve[256];
+
+                        // If the request is for the root, serve index.html
                         if (strcmp(url_start, "/") == 0) {
-                            file_to_serve = "index.html";
-                        } else if (strcmp(url_start, "/secret") == 0) {
-                            file_to_serve = "secret.html";
+                            strcpy(file_to_serve, "index.html");
                         } else {
-                            file_to_serve = NULL;
+                            // Otherwise, remove the leading slash and append ".html" to the requested file
+                            snprintf(file_to_serve, sizeof(file_to_serve), ".%s.html", url_start);  // Add '.' and append ".html"
                         }
 
-                        if (file_to_serve) {
-                            FILE* f = fopen(file_to_serve, "r");
-                            if (f) {
-                                char buffer[4096];
-                                int bytes_read = fread(buffer, 1, sizeof(buffer), f);
-                                fclose(f);
+                        // Try to open the file
+                        FILE* f = fopen(file_to_serve, "r");
+                        if (f) {
+                            // Read the file contents
+                            char buffer[4096];
+                            int bytes_read = fread(buffer, 1, sizeof(buffer), f);
+                            fclose(f);
 
-                                // Prepare the response headers
-                                char response_headers[256];
-                                snprintf(response_headers, sizeof(response_headers),
-                                         "HTTP/1.1 200 OK\r\n"
-                                         "Content-Type: text/html\r\n"
-                                         "Content-Length: %d\r\n"
-                                         "Connection: close\r\n"
-                                         "\r\n", bytes_read);
-
-                                // Send headers and file content
-                                send(client, response_headers, strlen(response_headers), 0);
-                                send(client, buffer, bytes_read, 0);
-                            } else {
-                                // File not found response
-                                const char* not_found_response =
-                                    "HTTP/1.1 404 Not Found\r\n"
+                            // Prepare the response headers
+                            char response_headers[256];
+                            snprintf(response_headers, sizeof(response_headers),
+                                    "HTTP/1.1 200 OK\r\n"
                                     "Content-Type: text/html\r\n"
+                                    "Content-Length: %d\r\n"
                                     "Connection: close\r\n"
-                                    "\r\n"
-                                    "<html><body><h1>404 Not Found</h1></body></html>";
+                                    "\r\n", bytes_read);
 
-                                send(client, not_found_response, strlen(not_found_response), 0);
-                            }
+                            // Send headers and file content
+                            send(client, response_headers, strlen(response_headers), 0);
+                            send(client, buffer, bytes_read, 0);
                         } else {
-                            // File not found response
+                            // File not found, respond with 404
                             const char* not_found_response =
                                 "HTTP/1.1 404 Not Found\r\n"
                                 "Content-Type: text/html\r\n"
@@ -130,6 +121,7 @@ int handle_request(SOCKET client) {
                                 "\r\n"
                                 "<html><body><h1>404 Not Found</h1></body></html>";
 
+                            // Send the 404 response
                             send(client, not_found_response, strlen(not_found_response), 0);
                         }
                     }
