@@ -3,7 +3,7 @@
 
 #include <winsock2.h>
 
-#define PORT 8080
+#define PORT 7567
 
 int server_start();
 SOCKET create_socket();

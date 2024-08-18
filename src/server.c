@@ -44,8 +44,7 @@ int bind_socket(SOCKET s){
 	return 0;
 }
 
-int handle_request(SOCKET client){
-    // TODO: Refactor code structure
+int handle_request(SOCKET client) {
     char request[1024] = {0};
     recv(client, request, sizeof(request) - 1, 0);
 
@@ -62,61 +61,94 @@ int handle_request(SOCKET client){
             *auth_end = '\0'; // Null-terminate the encoded credentials string
 
             // Decode Base64
-            // TODO: Add encryption to secure details
             char decoded_credentials[256] = {0};
             decode_base64(decoded_credentials, auth_position);
 
             // Check credentials
             char expected_credentials[256] = {0};
-
             snprintf(expected_credentials, sizeof(expected_credentials), "%s:%s", USERNAME, PASSWORD);
             if (strcmp(decoded_credentials, expected_credentials) == 0) {
                 // Correct credentials, serve the requested file
-                // TODO: Handle requests for specific files in a directory
-                if (memcmp(request, "GET / ", 6) == 0) {
-                    FILE* f = fopen("index.html", "r");
-                    if (f) {
-                        char buffer[4096];
-                        int bytes_read = fread(buffer, 1, sizeof(buffer), f);
-                        fclose(f);
+                char* request_line_end = strstr(request, "\r\n");
+                if (request_line_end) {
+                    *request_line_end = '\0'; // Null-terminate the request line
+                }
 
-                        const char* response_headers =
-                            "HTTP/1.1 200 OK\r\n"
-                            "Content-Type: text/html\r\n"
-                            "Connection: close\r\n"
-                            "\r\n";
+                char* url_start = strstr(request, "GET ");
+                if (url_start) {
+                    url_start += 4; // Move past "GET "
+                    char* url_end = strstr(url_start, " ");
+                    if (url_end) {
+                        *url_end = '\0'; // Null-terminate the URL
 
-                        send(client, response_headers, strlen(response_headers), 0);
-                        send(client, buffer, bytes_read, 0);
-                    } else {
-                        // Currently won't be used
-                        const char* not_found_response =
-                            "HTTP/1.1 404 Not Found\r\n"
-                            "Content-Type: text/html\r\n"
-                            "Connection: close\r\n"
-                            "\r\n";
+                        // Map URL to file
+                        const char* file_to_serve;
+                        if (strcmp(url_start, "/") == 0) {
+                            file_to_serve = "index.html";
+                        } else if (strcmp(url_start, "/secret") == 0) {
+                            file_to_serve = "secret.html";
+                        } else {
+                            file_to_serve = NULL;
+                        }
 
-                        send(client, not_found_response, strlen(not_found_response), 0);
+                        if (file_to_serve) {
+                            FILE* f = fopen(file_to_serve, "r");
+                            if (f) {
+                                char buffer[4096];
+                                int bytes_read = fread(buffer, 1, sizeof(buffer), f);
+                                fclose(f);
+
+                                // Prepare the response headers
+                                char response_headers[256];
+                                snprintf(response_headers, sizeof(response_headers),
+                                         "HTTP/1.1 200 OK\r\n"
+                                         "Content-Type: text/html\r\n"
+                                         "Content-Length: %d\r\n"
+                                         "Connection: close\r\n"
+                                         "\r\n", bytes_read);
+
+                                // Send headers and file content
+                                send(client, response_headers, strlen(response_headers), 0);
+                                send(client, buffer, bytes_read, 0);
+                            } else {
+                                // File not found response
+                                const char* not_found_response =
+                                    "HTTP/1.1 404 Not Found\r\n"
+                                    "Content-Type: text/html\r\n"
+                                    "Connection: close\r\n"
+                                    "\r\n"
+                                    "<html><body><h1>404 Not Found</h1></body></html>";
+
+                                send(client, not_found_response, strlen(not_found_response), 0);
+                            }
+                        } else {
+                            // File not found response
+                            const char* not_found_response =
+                                "HTTP/1.1 404 Not Found\r\n"
+                                "Content-Type: text/html\r\n"
+                                "Connection: close\r\n"
+                                "\r\n"
+                                "<html><body><h1>404 Not Found</h1></body></html>";
+
+                            send(client, not_found_response, strlen(not_found_response), 0);
+                        }
                     }
                 }
-			// Clear sensitive information from the buffers
-			memset(request, 0, sizeof(request));
-			memset(decoded_credentials, 0, sizeof(decoded_credentials));
-			memset(expected_credentials, 0, sizeof(expected_credentials));
             } else {
-                // Incorrect credentials, send 401 Unauthorized, unused due to loop
+                // Incorrect credentials
                 const char* unauthorized_response =
                     "HTTP/1.1 401 Unauthorized\r\n"
                     "WWW-Authenticate: Basic realm=\"Restricted Area\"\r\n"
                     "Content-Type: text/html\r\n"
                     "Connection: close\r\n"
-                    "\r\n";
+                    "\r\n"
+                    "<html><body><h1>401 Unauthorized</h1></body></html>";
 
                 send(client, unauthorized_response, strlen(unauthorized_response), 0);
             }
         }
     } else {
-        // No credentials provided, send 401 Unauthorized
+        // No credentials provided
         const char* unauthorized_response =
             "HTTP/1.1 401 Unauthorized\r\n"
             "WWW-Authenticate: Basic realm=\"Restricted Area\"\r\n"
