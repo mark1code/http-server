@@ -4,8 +4,8 @@
 #include "base64_decode.h"
 #include "server.h"
 
-#define USERNAME "admin"
-#define PASSWORD "password"
+#define USERNAME "benkenobi"
+#define PASSWORD "luke"
 
 int server_start(){
 	SOCKET socket = create_socket();
@@ -44,6 +44,16 @@ int bind_socket(SOCKET s){
 	return 0;
 }
 
+const char* get_mime_type(const char* file_extension) {
+    if (strcmp(file_extension, ".html") == 0) return "text/html";
+    if (strcmp(file_extension, ".jpg") == 0 || strcmp(file_extension, ".jpeg") == 0) return "image/jpeg";
+    if (strcmp(file_extension, ".png") == 0) return "image/png";
+    if (strcmp(file_extension, ".gif") == 0) return "image/gif";
+    if (strcmp(file_extension, ".css") == 0) return "text/css";
+    if (strcmp(file_extension, ".js") == 0) return "application/javascript";
+    return "text/html"; // Default MIME type not used to prevent vulnerability
+}
+
 int handle_request(SOCKET client) {
     char request[1024] = {0};
     recv(client, request, sizeof(request) - 1, 0);
@@ -60,13 +70,14 @@ int handle_request(SOCKET client) {
         if (auth_end) {
             *auth_end = '\0'; // Null-terminate the encoded credentials string
 
-            // Decode Base64
+            // Decode Base64 credentials
             char decoded_credentials[256] = {0};
             decode_base64(decoded_credentials, auth_position);
 
             // Check credentials
             char expected_credentials[256] = {0};
             snprintf(expected_credentials, sizeof(expected_credentials), "%s:%s", USERNAME, PASSWORD);
+
             if (strcmp(decoded_credentials, expected_credentials) == 0) {
                 // Correct credentials, serve the requested file
                 char* request_line_end = strstr(request, "\r\n");
@@ -83,35 +94,50 @@ int handle_request(SOCKET client) {
 
                         // Map URL to file
                         char file_to_serve[256];
+                        char* file_extension = strrchr(url_start, '.');
 
                         // If the request is for the root, serve index.html
                         if (strcmp(url_start, "/") == 0) {
                             strcpy(file_to_serve, "index.html");
+                            file_extension = ".html"; // Default file extension
                         } else {
-                            // Otherwise, remove the leading slash and append ".html" to the requested file
-                            snprintf(file_to_serve, sizeof(file_to_serve), ".%s.html", url_start);  // Add '.' and append ".html"
+                            snprintf(file_to_serve, sizeof(file_to_serve), ".%s", url_start); // Add '.' for relative path
                         }
 
-                        // Try to open the file
-                        FILE* f = fopen(file_to_serve, "r");
+                        // Determine file extension if not already set
+                        if (file_extension == NULL) {
+                            strcat(file_to_serve, ".html"); // Append default extension
+                            file_extension = ".html";
+                        }
+
+                        // Open the file
+                        FILE* f = fopen(file_to_serve, "rb");
                         if (f) {
-                            // Read the file contents
-                            char buffer[4096];
-                            int bytes_read = fread(buffer, 1, sizeof(buffer), f);
-                            fclose(f);
+                            // Calculate the file size
+                            fseek(f, 0, SEEK_END);
+                            long file_size = ftell(f);
+                            fseek(f, 0, SEEK_SET); // Rewind to the beginning of the file
 
                             // Prepare the response headers
-                            char response_headers[256];
+                            char response_headers[512];
                             snprintf(response_headers, sizeof(response_headers),
                                     "HTTP/1.1 200 OK\r\n"
-                                    "Content-Type: text/html\r\n"
-                                    "Content-Length: %d\r\n"
+                                    "Content-Type: %s\r\n"
+                                    "Content-Length: %ld\r\n"
                                     "Connection: close\r\n"
-                                    "\r\n", bytes_read);
+                                    "\r\n", get_mime_type(file_extension), file_size);
 
-                            // Send headers and file content
+                            // Send the headers
                             send(client, response_headers, strlen(response_headers), 0);
-                            send(client, buffer, bytes_read, 0);
+
+                            // Send the file content in chunks
+                            char buffer[4096];
+                            size_t bytes_read;
+                            while ((bytes_read = fread(buffer, 1, sizeof(buffer), f)) > 0) {
+                                send(client, buffer, bytes_read, 0);
+                            }
+
+                            fclose(f); // Close the file
                         } else {
                             // File not found, respond with 404
                             const char* not_found_response =
@@ -127,7 +153,7 @@ int handle_request(SOCKET client) {
                     }
                 }
             } else {
-                // Incorrect credentials
+                // Incorrect credentials, respond with 401 Unauthorized
                 const char* unauthorized_response =
                     "HTTP/1.1 401 Unauthorized\r\n"
                     "WWW-Authenticate: Basic realm=\"Restricted Area\"\r\n"
@@ -140,7 +166,7 @@ int handle_request(SOCKET client) {
             }
         }
     } else {
-        // No credentials provided
+        // No credentials provided, respond with 401 Unauthorized
         const char* unauthorized_response =
             "HTTP/1.1 401 Unauthorized\r\n"
             "WWW-Authenticate: Basic realm=\"Restricted Area\"\r\n"
@@ -155,3 +181,4 @@ int handle_request(SOCKET client) {
     closesocket(client);
     return 0;
 }
+
