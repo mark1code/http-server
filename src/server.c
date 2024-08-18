@@ -76,7 +76,7 @@ int handle_request(SOCKET client){
                 if (memcmp(request, "GET / ", 6) == 0) {
                     FILE* f = fopen("index.html", "r");
                     if (f) {
-                        char buffer[1024];
+                        char buffer[4096];
                         int bytes_read = fread(buffer, 1, sizeof(buffer), f);
                         fclose(f);
 
